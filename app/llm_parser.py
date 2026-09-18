@@ -287,8 +287,11 @@ async def _call_gemini_api(
     battery: BatteryInput,
     api_key: str,
 ) -> List[Dict[str, Any]]:
-    """Call Google Gemini REST API using httpx."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.LLM_MODEL}:generateContent?key={api_key}"
+    """Call Google Gemini REST API using httpx with automatic model failover."""
+    models_to_try = [settings.LLM_MODEL]
+    for candidate in ("gemini-3-flash-preview", "gemini-flash-latest"):
+        if candidate not in models_to_try:
+            models_to_try.append(candidate)
 
     notes_text = "\n".join(f"[{i}]: {n}" for i, n in enumerate(operator_notes))
     user_prompt = (
@@ -309,18 +312,29 @@ async def _call_gemini_api(
         },
     }
 
+    last_error: Optional[Exception] = None
     async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT_SECONDS) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
+        for model in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            try:
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
 
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-        parsed = json.loads(text)
-        if isinstance(parsed, dict) and "directives" in parsed:
-            return parsed["directives"]
-        if isinstance(parsed, list):
-            return parsed
-        raise ValueError("Invalid Gemini response JSON structure")
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(text)
+                if isinstance(parsed, dict) and "directives" in parsed:
+                    return parsed["directives"]
+                if isinstance(parsed, list):
+                    return parsed
+            except Exception as exc:
+                logger.warning("Gemini model '%s' failed (%s: %s). Trying next model if available.", model, type(exc).__name__, exc)
+                last_error = exc
+                continue
+
+    if last_error:
+        raise last_error
+    raise ValueError("Invalid Gemini response JSON structure")
 
 
 async def _call_openai_compatible_api(

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # LLM settings
     LLM_PROVIDER: str = "gemini"  # Supported: "gemini", "openai", "groq", "mock"
-    LLM_MODEL: str = "gemini-1.5-flash"
+    LLM_MODEL: str = "gemini-3-flash-preview"
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     LLM_API_KEY: Optional[str] = None
