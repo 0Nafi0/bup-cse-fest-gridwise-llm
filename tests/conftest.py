@@ -8,11 +8,13 @@ import pytest
 
 from app.main import app
 
-SAMPLE_CASES_PATH = (
-    Path(__file__).parent.parent
-    / "BUP_CSE_FEST_2026_Participant_Docs"
-    / "BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json"
-)
+SAMPLE_CASES_PATH = Path(__file__).parent / "sample_cases.json"
+if not SAMPLE_CASES_PATH.exists():
+    SAMPLE_CASES_PATH = (
+        Path(__file__).parent.parent
+        / "BUP_CSE_FEST_2026_Participant_Docs"
+        / "BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json"
+    )
 
 
 @pytest.fixture(scope="session")
